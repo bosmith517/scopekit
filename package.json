@@ -1,0 +1,16 @@
+﻿{
+  "name": "scopekit",
+  "version": "1.2.0",
+  "description": "AI-Powered Field Estimation Platform",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "install:all": "cd frontend && npm install",
+    "db:push": "supabase db push",
+    "functions:deploy": "supabase functions deploy"
+  },
+  "keywords": ["contractor", "estimates", "ai", "field-service"],
+  "author": "ScopeKit Team",
+  "license": "PROPRIETARY"
+}

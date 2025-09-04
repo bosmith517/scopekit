@@ -1,0 +1,230 @@
+import { create } from 'zustand'
+import localforage from 'localforage'
+import { uploadToStorage, registerMedia } from '../lib/api'
+import { Network } from '@capacitor/network'
+
+export interface QueueItem {
+  id: string
+  visitId: string
+  type: 'photo' | 'audio' | 'ai_job'
+  blob?: Blob // Optional for AI jobs
+  path?: string // Optional for AI jobs
+  sequence?: number // Optional for AI jobs
+  attempts: number
+  createdAt: number
+  metadata?: {
+    duration?: number
+    size?: number
+    jobType?: 'transcribe' | 'estimate' // For AI jobs
+  }
+}
+
+interface SyncStore {
+  queue: QueueItem[]
+  isOnline: boolean
+  isSyncing: boolean
+  uploadProgress: { [id: string]: number }
+  
+  // Actions
+  addToQueue: (item: Omit<QueueItem, 'id' | 'attempts' | 'createdAt'>) => Promise<void>
+  removeFromQueue: (id: string) => Promise<void>
+  processQueue: () => Promise<void>
+  setOnline: (isOnline: boolean) => void
+  updateProgress: (id: string, progress: number) => void
+  clearQueue: () => Promise<void>
+}
+
+// Configure localforage
+const queueStorage = localforage.createInstance({
+  name: 'scopekit-sync-queue'
+})
+
+export const useSyncStore = create<SyncStore>((set, get) => ({
+  queue: [],
+  isOnline: true,
+  isSyncing: false,
+  uploadProgress: {},
+
+  addToQueue: async (item) => {
+    const queueItem: QueueItem = {
+      ...item,
+      id: crypto.randomUUID(),
+      attempts: 0,
+      createdAt: Date.now()
+    }
+
+    // Save blob to IndexedDB
+    await queueStorage.setItem(queueItem.id, queueItem.blob)
+
+    set((state) => ({
+      queue: [...state.queue, { ...queueItem, blob: new Blob() }] // Don't keep blob in memory
+    }))
+
+    // Trigger sync if online
+    if (get().isOnline && !get().isSyncing) {
+      get().processQueue()
+    }
+  },
+
+  removeFromQueue: async (id) => {
+    await queueStorage.removeItem(id)
+    set((state) => {
+      const newProgress = { ...state.uploadProgress }
+      delete newProgress[id]
+      return {
+        queue: state.queue.filter(item => item.id !== id),
+        uploadProgress: newProgress
+      }
+    })
+  },
+
+  processQueue: async () => {
+    const { queue, isOnline, isSyncing } = get()
+    
+    if (!isOnline || isSyncing || queue.length === 0) return
+
+    set({ isSyncing: true })
+
+    try {
+      for (const item of queue) {
+        if (item.attempts >= 5) {
+          console.error(`Max attempts reached for ${item.id}`)
+          continue
+        }
+
+        try {
+          // Handle AI jobs differently
+          if (item.type === 'ai_job') {
+            // Import aiEstimation dynamically to avoid circular deps
+            const { aiEstimation } = await import('../services/aiEstimation')
+            await aiEstimation.triggerEstimation(item.visitId)
+            
+            // Remove from queue on success
+            await get().removeFromQueue(item.id)
+          } else {
+            // Handle media uploads
+            if (!item.blob || !item.path) continue
+            
+            // Get blob from storage
+            const blob = await queueStorage.getItem<Blob>(item.id)
+            if (!blob) continue
+
+            // Upload with progress tracking
+            await uploadWithProgress(
+              blob,
+              item.path,
+              (progress) => get().updateProgress(item.id, progress)
+            )
+
+            // Register in database
+            await registerMedia(
+              item.visitId,
+              item.type as 'photo' | 'audio',
+              item.path,
+              item.metadata?.size,
+              item.metadata?.duration,
+              item.sequence
+            )
+
+            // Remove from queue on success
+            await get().removeFromQueue(item.id)
+          }
+        } catch (error) {
+          console.error(`Failed to process ${item.id}:`, error)
+          
+          // Update attempts
+          set((state) => ({
+            queue: state.queue.map(q =>
+              q.id === item.id
+                ? { ...q, attempts: q.attempts + 1 }
+                : q
+            )
+          }))
+
+          // Exponential backoff
+          const delay = Math.min(1000 * Math.pow(2, item.attempts), 16000)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    } finally {
+      set({ isSyncing: false })
+    }
+  },
+
+  setOnline: (isOnline) => {
+    set({ isOnline })
+    if (isOnline && !get().isSyncing) {
+      get().processQueue()
+    }
+  },
+
+  updateProgress: (id, progress) => {
+    set((state) => ({
+      uploadProgress: { ...state.uploadProgress, [id]: progress }
+    }))
+  },
+
+  clearQueue: async () => {
+    // Clear all items from storage
+    const { queue } = get()
+    for (const item of queue) {
+      await queueStorage.removeItem(item.id)
+    }
+    // Reset state
+    set({ queue: [], uploadProgress: {} })
+  }
+}))
+
+// Helper to upload with progress
+async function uploadWithProgress(
+  blob: Blob,
+  path: string,
+  onProgress: (progress: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    })
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve()
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`))
+      }
+    })
+
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')))
+
+    // Use Supabase storage API directly
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/site-visits/${path}`
+    xhr.open('POST', url)
+    xhr.setRequestHeader('Authorization', `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`)
+    xhr.send(blob)
+  })
+}
+
+// Initialize network monitoring
+Network.addListener('networkStatusChange', (status) => {
+  useSyncStore.getState().setOnline(status.connected)
+})
+
+// Check initial network status
+Network.getStatus().then((status) => {
+  useSyncStore.getState().setOnline(status.connected)
+})
+
+// Auto-sync interval based on connection type
+setInterval(async () => {
+  const status = await Network.getStatus()
+  const { isOnline, isSyncing, queue } = useSyncStore.getState()
+  
+  if (isOnline && !isSyncing && queue.length > 0) {
+    const interval = status.connectionType === 'wifi' ? 300000 : 900000 // 5min WiFi, 15min cell
+    useSyncStore.getState().processQueue()
+  }
+}, 60000) // Check every minute
