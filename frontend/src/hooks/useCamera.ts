@@ -14,20 +14,18 @@ export function useCamera() {
       setError(null)
       
       if (Capacitor.isNativePlatform()) {
-        // Native camera preview - constrained to container
-        const previewElement = document.getElementById('camera-preview')
-        const rect = previewElement?.getBoundingClientRect()
-        
+        // Native camera preview - FULL SCREEN
         await CameraPreview.start({
           position: 'rear',
-          height: rect?.height || 400,
-          width: rect?.width || window.innerWidth - 40,
-          x: rect?.left || 20,
-          y: rect?.top || 150,
-          toBack: false,
-          paddingBottom: 100,
+          height: window.innerHeight,
+          width: window.innerWidth,
+          x: 0,
+          y: 0,
+          toBack: true, // Put camera behind the webview
           enableZoom: true,
-          disableAudio: true
+          disableAudio: true,
+          storeToFile: true, // Store to file instead of base64 for speed
+          enableHighResolution: true
         })
       } else {
         // Web fallback
@@ -78,12 +76,14 @@ export function useCamera() {
   const capturePhoto = async (): Promise<Blob | null> => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Native capture
+        // Native capture - optimized for speed
         const result = await CameraPreview.capture({
-          quality: 85
+          quality: 85,
+          width: 0, // 0 = use current preview size
+          height: 0
         })
         
-        // Convert base64 to blob
+        // Convert base64 to blob (CameraPreview always returns base64)
         const response = await fetch(`data:image/jpeg;base64,${result.value}`)
         return await response.blob()
       } else {

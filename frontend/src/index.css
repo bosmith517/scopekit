@@ -4,6 +4,28 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* Quick camera flash animation */
+  @keyframes flash {
+    0% { opacity: 0; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0; }
+  }
+  
+  .animate-flash {
+    animation: flash 50ms ease-out;
+  }
+  
+  /* Safe area padding for iOS devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 /* ScopeKit Design System - Based on Frontend v1.2 Spec */
 :root {
   /* Typography */

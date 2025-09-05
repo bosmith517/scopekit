@@ -92,11 +92,11 @@ export default function CaptureFlowScreen() {
       setPhotoCount(photoCount + 1)
       console.log(`Photo ${sequence} captured and queued`)
 
-      // Flash effect
+      // Quick flash effect (only 50ms)
       const flash = document.createElement('div')
-      flash.className = 'fixed inset-0 bg-white z-50 pointer-events-none opacity-75'
+      flash.className = 'fixed inset-0 bg-white z-[60] pointer-events-none animate-flash'
       document.body.appendChild(flash)
-      setTimeout(() => flash.remove(), 200)
+      setTimeout(() => flash.remove(), 50)
 
     } catch (error) {
       console.error('Capture error:', error)
@@ -164,32 +164,64 @@ export default function CaptureFlowScreen() {
         <div className="p-6">
           {activeTab === 'photos' ? (
             isCameraOpen ? (
-              // Camera view
-              <div className="relative">
-                <div id="camera-preview" className="bg-black rounded-lg relative" style={{ height: '400px' }}>
+              // Full screen camera view with overlay controls
+              <div className="fixed inset-0 z-50 bg-black">
+                {/* Camera preview container - full screen */}
+                <div id="camera-preview" className="absolute inset-0">
                   <video
                     ref={camera.videoRef}
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full object-cover"
                     playsInline
                     muted
                   />
-                  {/* Overlay controls for safety */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                    <div className="flex gap-3">
-                      <button
-                        onClick={handleCloseCamera}
-                        className="px-4 py-3 bg-red-600 text-white rounded-lg font-medium"
-                      >
-                        Close
-                      </button>
-                      <button
-                        onClick={handleCapturePhoto}
-                        disabled={isCapturing}
-                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium disabled:bg-gray-400"
-                      >
-                        {isCapturing ? 'Capturing...' : 'Take Photo'}
-                      </button>
+                </div>
+                
+                {/* Top overlay - header with close button */}
+                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-4 safe-top">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={handleCloseCamera}
+                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white"
+                      aria-label="Close camera"
+                    >
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1">
+                      <span className="text-white text-sm font-medium">{photoCount} photos</span>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Bottom overlay - capture controls */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 safe-bottom">
+                  <div className="flex items-center justify-center gap-8">
+                    {/* Gallery button (placeholder) */}
+                    <div className="w-12 h-12" />
+                    
+                    {/* Capture button - big and centered */}
+                    <button
+                      onClick={handleCapturePhoto}
+                      disabled={isCapturing}
+                      className="relative"
+                      aria-label="Take photo"
+                    >
+                      <div className={`w-20 h-20 rounded-full border-4 border-white ${isCapturing ? 'bg-white/50' : 'bg-white/20'} backdrop-blur-sm transition-all`}>
+                        <div className={`absolute inset-2 rounded-full bg-white ${isCapturing ? 'scale-75' : ''} transition-transform`} />
+                      </div>
+                    </button>
+                    
+                    {/* Flip camera button */}
+                    <button
+                      onClick={() => camera.flipCamera()}
+                      className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full text-white"
+                      aria-label="Flip camera"
+                    >
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
