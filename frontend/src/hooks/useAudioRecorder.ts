@@ -36,11 +36,11 @@ export function useAudioRecorder() {
   const saveAudioChunk = async (
     blob: Blob,
     visitId: string,
-    tenantId: string,
+    organizationId: string,
     chunkNumber: number
   ) => {
     const timestamp = Date.now()
-    const path = `${tenantId}/${visitId}/audio/chunk_${chunkNumber}_${timestamp}.webm`
+    const path = `${organizationId}/${visitId}/audio/chunk_${chunkNumber}_${timestamp}.webm`
     
     console.log(`[AudioRecorder] Saving audio chunk ${chunkNumber} to queue, size: ${blob.size}, path: ${path}`)
     
@@ -65,12 +65,12 @@ export function useAudioRecorder() {
     try {
       setError(null)
       const visitId = visitStore.visitId
-      const tenantId = visitStore.tenantId
+      const organizationId = visitStore.tenantId // Still using tenantId from store but it's organizationId
       
-      console.log('[AudioRecorder] Starting recording with visitId:', visitId, 'tenantId:', tenantId)
+      console.log('[AudioRecorder] Starting recording with visitId:', visitId, 'organizationId:', organizationId)
       
-      if (!visitId || !tenantId) {
-        throw new Error(`No active visit - visitId: ${visitId}, tenantId: ${tenantId}`)
+      if (!visitId || !organizationId) {
+        throw new Error(`No active visit - visitId: ${visitId}, organizationId: ${organizationId}`)
       }
 
       if (Capacitor.isNativePlatform()) {
@@ -98,7 +98,7 @@ export function useAudioRecorder() {
               await saveAudioChunk(
                 audioBlob,
                 visitId,
-                tenantId,
+                organizationId,
                 chunkCountRef.current++
               )
             }
@@ -130,7 +130,7 @@ export function useAudioRecorder() {
             await saveAudioChunk(
               event.data,
               visitId,
-              tenantId,
+              organizationId,
               chunkCountRef.current++
             )
           }
@@ -158,9 +158,9 @@ export function useAudioRecorder() {
   const stopRecording = useCallback(async () => {
     try {
       const visitId = visitStore.visitId
-      const tenantId = visitStore.tenantId
+      const organizationId = visitStore.tenantId
       
-      if (!visitId || !tenantId) return
+      if (!visitId || !organizationId) return
 
       if (Capacitor.isNativePlatform()) {
         // Native stop
@@ -178,7 +178,7 @@ export function useAudioRecorder() {
           await saveAudioChunk(
             audioBlob,
             visitId,
-            tenantId,
+            organizationId,
             chunkCountRef.current
           )
         }

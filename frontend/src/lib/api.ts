@@ -12,19 +12,19 @@ export async function createSiteVisit(
     address?: string
   }
 ) {
-  // Always use default tenant for testing
-  const tenantId = '00000000-0000-0000-0000-000000000001'
+  // Always use default organization for testing
+  const organizationId = '00000000-0000-0000-0000-000000000001'
   
   // Also ensure it's set in the store
   if (!useVisitStore.getState().tenantId) {
-    useVisitStore.getState().setTenant(tenantId)
+    useVisitStore.getState().setTenant(organizationId)
   }
   
-  console.log('[API] Creating visit with tenant ID:', tenantId)
+  console.log('[API] Creating visit with organization ID:', organizationId)
   
   // Try v2 function first (cache workaround), fallback to original
   let { data, error } = await supabase.rpc('create_site_visit_v2', {
-    p_tenant_id: tenantId,
+    p_organization_id: organizationId,
     p_evidence_pack: evidencePack,
     p_customer_id: leadId || null,
     p_customer_name: customerInfo?.name || null,
@@ -36,7 +36,7 @@ export async function createSiteVisit(
   // If v2 doesn't exist, try original name
   if (error && error.code === 'PGRST202') {
     const result = await supabase.rpc('create_site_visit', {
-      p_tenant_id: tenantId,
+      p_organization_id: organizationId,
       p_evidence_pack: evidencePack,
       p_customer_id: leadId || null,
       p_customer_name: customerInfo?.name || null,
@@ -54,7 +54,7 @@ export async function createSiteVisit(
     const { data: directData, error: directError } = await supabase
       .from('site_visits')
       .insert({
-        tenant_id: tenantId,
+        organization_id: organizationId,
         evidence_pack: evidencePack,
         lead_id: leadId || null,
         customer_name: customerInfo?.name || null,

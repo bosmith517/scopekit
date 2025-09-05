@@ -88,12 +88,12 @@ export default function CaptureFlowScreen() {
       // Get current location for this photo
       const location = await geolocation.getCurrentLocation()
       
-      const tenantId = visitStore.tenantId || '00000000-0000-0000-0000-000000000001'
+      const organizationId = visitStore.tenantId || '00000000-0000-0000-0000-000000000001'
       
       // Add to sync queue
       const sequence = photoCount
       const timestamp = Date.now()
-      const path = `${tenantId}/${visitId}/photos/photo_${sequence}_${timestamp}.jpg`
+      const path = `${organizationId}/${visitId}/photos/photo_${sequence}_${timestamp}.jpg`
       
       await syncStore.addToQueue({
         visitId: visitId!,
