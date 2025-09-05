@@ -77,8 +77,8 @@ export default function NewVisitScreen() {
       
       if (error) throw error
       if (data) {
-        setVisitId(data.id)
-        navigate(`/capture/${data.id}`)
+        setVisitId(data)
+        window.location.hash = `/capture/${data}`
       }
     } catch (error) {
       console.error('Error creating visit:', error)
