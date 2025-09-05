@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import App from './App'
 import './index.css'
 
@@ -17,8 +17,10 @@ import SettingsScreen from './screens/SettingsScreen'
 import FinalizeVisitScreen from './screens/FinalizeVisitScreen'
 import AuthScreen from './screens/AuthScreen'
 import ApprovalScreen from './screens/ApprovalScreen'
+import NotFoundScreen from './screens/NotFoundScreen'
 
-const router = createBrowserRouter([
+// Use HashRouter for Capacitor compatibility
+const router = createHashRouter([
   {
     path: '/auth',
     element: <AuthScreen />
@@ -42,7 +44,12 @@ const router = createBrowserRouter([
       { path: 'estimate/:estimateId', element: <EstimateScreen /> },
       { path: 'history', element: <HistoryScreen /> },
       { path: 'settings', element: <SettingsScreen /> },
+      { path: '*', element: <NotFoundScreen /> }
     ]
+  },
+  {
+    path: '*',
+    element: <NotFoundScreen />
   }
 ])
 

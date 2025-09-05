@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>ScopeKit Capture</string>
+	<string>ScopeKit Capture</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -22,6 +22,18 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>ScopeKit requires camera access to capture project evidence photos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ScopeKit requires microphone access to record audio notes during site visits.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ScopeKit requires location access to tag project captures with site location and weather data.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ScopeKit requires photo library access so users can attach project photos from their device.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ScopeKit needs permission to save captured photos to your photo library.</string>
+	<key>NSUserNotificationUsageDescription</key>
+	<string>ScopeKit sends notifications to alert you about task updates, approvals, and project reminders.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

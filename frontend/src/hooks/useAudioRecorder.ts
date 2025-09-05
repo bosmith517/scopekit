@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback } from 'react'
-// Voice recorder removed - using web MediaRecorder only
+import { VoiceRecorder } from 'capacitor-voice-recorder'
 import { Capacitor } from '@capacitor/core'
 import { useSyncStore } from '../stores/syncStore'
 import { useVisitStore } from '../stores/visitStore'
+
+const CHUNK_DURATION_MS = 2000 // 2 seconds
 
 export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false)
@@ -18,7 +20,41 @@ export function useAudioRecorder() {
   const visitStore = useVisitStore()
   const syncStore = useSyncStore()
 
-  const CHUNK_DURATION_MS = 2000 // 2 seconds
+  // Helper to convert base64 to blob
+  const base64ToBlob = (base64: string, mimeType: string): Blob => {
+    const byteCharacters = atob(base64)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    return new Blob([byteArray], { type: mimeType })
+  }
+
+  // Save audio chunk to sync queue
+  const saveAudioChunk = async (
+    blob: Blob,
+    visitId: string,
+    tenantId: string,
+    chunkNumber: number
+  ) => {
+    const timestamp = Date.now()
+    const path = `${tenantId}/${visitId}/audio/chunk_${chunkNumber}_${timestamp}.webm`
+    
+    await syncStore.addToQueue({
+      visitId,
+      type: 'audio',
+      blob,
+      path,
+      sequence: chunkNumber,
+      metadata: {
+        duration: CHUNK_DURATION_MS,
+        size: blob.size
+      }
+    })
+
+    visitStore.addAudioChunk(`chunk_${chunkNumber}_${timestamp}`)
+  }
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -31,8 +67,42 @@ export function useAudioRecorder() {
         throw new Error('No active visit')
       }
 
-      // Always use web MediaRecorder (works on mobile browsers too)
-      {
+      if (Capacitor.isNativePlatform()) {
+        // Native recording with VoiceRecorder
+        const hasPermission = await VoiceRecorder.hasAudioRecordingPermission()
+        if (!hasPermission.value) {
+          const permission = await VoiceRecorder.requestAudioRecordingPermission()
+          if (!permission.value) {
+            throw new Error('Microphone permission denied')
+          }
+        }
+
+        await VoiceRecorder.startRecording()
+        
+        // Set up chunking interval for native recording
+        intervalRef.current = setInterval(async () => {
+          try {
+            // Stop current recording
+            const result = await VoiceRecorder.stopRecording()
+            if (result.value && result.value.recordDataBase64) {
+              const audioBlob = base64ToBlob(
+                result.value.recordDataBase64, 
+                result.value.mimeType || 'audio/aac'
+              )
+              await saveAudioChunk(
+                audioBlob,
+                visitId,
+                tenantId,
+                chunkCountRef.current++
+              )
+            }
+            // Start new recording for next chunk
+            await VoiceRecorder.startRecording()
+          } catch (err) {
+            console.error('Chunk recording error:', err)
+          }
+        }, CHUNK_DURATION_MS)
+      } else {
         // Web recording with MediaRecorder
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         
@@ -63,19 +133,14 @@ export function useAudioRecorder() {
         mediaRecorder.start(CHUNK_DURATION_MS) // Chunk every 2 seconds
       }
 
-      startTimeRef.current = Date.now()
       setIsRecording(true)
       visitStore.setRecording(true)
+      startTimeRef.current = Date.now()
 
-      // Update duration every 100ms
-      const durationInterval = setInterval(() => {
-        setDuration(Date.now() - startTimeRef.current)
-      }, 100)
-      
-      // Store interval to clear later
-      if (!intervalRef.current) {
-        intervalRef.current = durationInterval
-      }
+      // Update duration every second
+      intervalRef.current = setInterval(() => {
+        setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000))
+      }, 1000)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start recording')
@@ -91,10 +156,29 @@ export function useAudioRecorder() {
       
       if (!visitId || !tenantId) return
 
-      // Stop web recording
-      {
-        // Stop web recording
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      if (Capacitor.isNativePlatform()) {
+        // Native stop
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
+        
+        const result = await VoiceRecorder.stopRecording()
+        if (result.value && result.value.recordDataBase64) {
+          const audioBlob = base64ToBlob(
+            result.value.recordDataBase64, 
+            result.value.mimeType || 'audio/aac'
+          )
+          await saveAudioChunk(
+            audioBlob,
+            visitId,
+            tenantId,
+            chunkCountRef.current
+          )
+        }
+      } else if (mediaRecorderRef.current) {
+        // Web stop
+        if (mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop()
           
           // Stop all tracks
@@ -118,31 +202,6 @@ export function useAudioRecorder() {
     }
   }, [visitStore, syncStore])
 
-  // Save audio chunk to sync queue
-  const saveAudioChunk = async (
-    blob: Blob,
-    visitId: string,
-    tenantId: string,
-    chunkNumber: number
-  ) => {
-    const timestamp = Date.now()
-    const path = `${tenantId}/${visitId}/audio/chunk_${chunkNumber}_${timestamp}.webm`
-    
-    await syncStore.addToQueue({
-      visitId,
-      type: 'audio',
-      blob,
-      path,
-      sequence: chunkNumber,
-      metadata: {
-        duration: CHUNK_DURATION_MS,
-        size: blob.size
-      }
-    })
-
-    visitStore.addAudioChunk(`chunk_${chunkNumber}_${timestamp}`)
-  }
-
   return {
     isRecording,
     duration,
@@ -150,10 +209,4 @@ export function useAudioRecorder() {
     startRecording,
     stopRecording
   }
-}
-
-// Helper to convert base64 to blob
-async function base64ToBlob(base64: string, mimeType: string): Promise<Blob> {
-  const response = await fetch(`data:${mimeType};base64,${base64}`)
-  return await response.blob()
 }

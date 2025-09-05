@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Storage</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            max-width: 600px; 
+            margin: 100px auto; 
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            margin: 10px;
+        }
+        button:hover { background: #dc2626; }
+        .success {
+            color: #10b981;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        pre {
+            text-align: left;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧹 Clear Browser Storage</h1>
+    <p>This will clear all localStorage and sessionStorage for the ScopeKit app</p>
+    
+    <button onclick="clearAll()">Clear All Storage</button>
+    <button onclick="checkStorage()">Check Storage</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        function clearAll() {
+            // Clear localStorage
+            const localKeys = Object.keys(localStorage);
+            localKeys.forEach(key => {
+                console.log('Removing localStorage:', key);
+                localStorage.removeItem(key);
+            });
+            
+            // Clear sessionStorage  
+            const sessionKeys = Object.keys(sessionStorage);
+            sessionKeys.forEach(key => {
+                console.log('Removing sessionStorage:', key);
+                sessionStorage.removeItem(key);
+            });
+            
+            // Clear IndexedDB (for offline queue)
+            if ('indexedDB' in window) {
+                indexedDB.databases().then(databases => {
+                    databases.forEach(db => {
+                        console.log('Deleting IndexedDB:', db.name);
+                        indexedDB.deleteDatabase(db.name);
+                    });
+                });
+            }
+            
+            document.getElementById('result').innerHTML = `
+                <div class="success">✅ Storage Cleared!</div>
+                <p>Cleared ${localKeys.length} localStorage items</p>
+                <p>Cleared ${sessionKeys.length} sessionStorage items</p>
+                <p>Now refresh the main app at <a href="http://localhost:3000">http://localhost:3000</a></p>
+            `;
+        }
+        
+        function checkStorage() {
+            const localData = {};
+            const sessionData = {};
+            
+            // Get all localStorage
+            Object.keys(localStorage).forEach(key => {
+                try {
+                    localData[key] = JSON.parse(localStorage.getItem(key));
+                } catch {
+                    localData[key] = localStorage.getItem(key);
+                }
+            });
+            
+            // Get all sessionStorage
+            Object.keys(sessionStorage).forEach(key => {
+                try {
+                    sessionData[key] = JSON.parse(sessionStorage.getItem(key));
+                } catch {
+                    sessionData[key] = sessionStorage.getItem(key);
+                }
+            });
+            
+            document.getElementById('result').innerHTML = `
+                <h3>Current Storage Contents:</h3>
+                <h4>localStorage (${Object.keys(localData).length} items):</h4>
+                <pre>${JSON.stringify(localData, null, 2)}</pre>
+                <h4>sessionStorage (${Object.keys(sessionData).length} items):</h4>
+                <pre>${JSON.stringify(sessionData, null, 2)}</pre>
+            `;
+        }
+        
+        // Auto-check on load
+        checkStorage();
+    </script>
+</body>
+</html>
