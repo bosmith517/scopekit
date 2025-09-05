@@ -9,19 +9,34 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 export default function FinalizeVisitScreen() {
   const { visitId } = useParams()
   const navigate = useNavigate()
-  const { visits } = useVisitStore()
+  const visitStore = useVisitStore()
   const [processing, setProcessing] = useState(false)
   const [status, setStatus] = useState<'ready' | 'processing' | 'completed' | 'error'>('ready')
   const [estimate, setEstimate] = useState<any>(null)
   const [error, setError] = useState<string>('')
-  
-  const visit = visits.find(v => v.id === visitId)
+  const [visitData, setVisitData] = useState<any>(null)
   
   useEffect(() => {
-    if (!visit) {
-      navigate('/visits')
+    // Fetch visit data from Supabase
+    const fetchVisitData = async () => {
+      if (!visitId) return
+      
+      const { data, error } = await supabase
+        .from('site_visits')
+        .select('*')
+        .eq('id', visitId)
+        .single()
+      
+      if (error || !data) {
+        console.error('Failed to fetch visit:', error)
+        // Don't redirect, just show error
+      } else {
+        setVisitData(data)
+      }
     }
-  }, [visit, navigate])
+    
+    fetchVisitData()
+  }, [visitId])
   
   const handleFinalize = async () => {
     if (!visitId) return
@@ -127,27 +142,53 @@ export default function FinalizeVisitScreen() {
     }
   }
   
+  // Show loading if no visitId
+  if (!visitId) {
+    return (
+      <div className="min-h-screen bg-gray-50 px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+            <p className="text-gray-500">Invalid visit ID</p>
+            <button
+              onClick={() => navigate('/')}
+              className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg"
+            >
+              Return Home
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Finalize Visit</h1>
           
-          {visit && (
+          {visitData ? (
             <div className="space-y-4 mb-8">
               <div>
                 <p className="text-sm text-gray-500">Customer</p>
-                <p className="font-medium">{visit.customer_name}</p>
+                <p className="font-medium">{visitData.customer_name || 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Address</p>
-                <p className="font-medium">{visit.property_address}</p>
+                <p className="font-medium">{visitData.address || 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Evidence Pack</p>
                 <p className="font-medium capitalize">
-                  {visit.evidence_pack?.replace('_', ' ') || 'Standard'}
+                  {visitData.evidence_pack?.replace(/_/g, ' ') || 'Standard'}
                 </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 mb-8">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                <div className="h-6 bg-gray-200 rounded w-3/4"></div>
               </div>
             </div>
           )}
