@@ -51,11 +51,11 @@ export default function FinalizeVisitScreen() {
     }
     
     try {
-      // 1. Update visit status to finalized
+      // 1. Update visit status to completed (not 'finalized' which doesn't exist)
       const { error: updateError } = await supabase
         .from('site_visits')
         .update({
-          status: 'finalized',
+          status: 'completed',
           finished_at: new Date().toISOString()
         })
         .eq('id', visitId)

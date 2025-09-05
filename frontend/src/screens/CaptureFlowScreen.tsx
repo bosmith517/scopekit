@@ -37,17 +37,21 @@ export default function CaptureFlowScreen() {
   const handleOpenCamera = async () => {
     try {
       console.log('Opening camera...')
-      await camera.startPreview()
+      // First set the state to render the camera UI
       setIsCameraOpen(true)
       
-      // Debug: Check if buttons are actually rendered
-      setTimeout(() => {
-        const buttons = document.querySelectorAll('button')
-        console.log(`[Debug] Found ${buttons.length} buttons on screen`)
-        buttons.forEach((btn, i) => {
-          console.log(`[Debug] Button ${i}:`, btn.className, btn.onclick ? 'has click handler' : 'no handler')
-        })
-      }, 1000)
+      // Wait for the DOM to update with the camera-preview element
+      setTimeout(async () => {
+        try {
+          await camera.startPreview()
+          console.log('Camera preview started successfully')
+        } catch (err) {
+          console.error('Camera preview failed:', err)
+          setIsCameraOpen(false)
+          alert('Camera failed to start. Please try again.')
+        }
+      }, 100) // Small delay to ensure DOM is ready
+      
     } catch (error) {
       console.error('Failed to open camera:', error)
       alert('Camera access failed. Please check permissions.')
