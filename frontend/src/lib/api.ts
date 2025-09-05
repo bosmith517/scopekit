@@ -112,6 +112,17 @@ export async function registerMedia(
   sequence?: number,
   hash?: string
 ) {
+  // Ensure we have a session
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    console.log('[API] No session for registerMedia, attempting anonymous auth...')
+    const { error: authError } = await supabase.auth.signInAnonymously()
+    if (authError) {
+      console.error('[API] Anonymous auth failed:', authError)
+      throw new Error('Authentication required for registerMedia')
+    }
+  }
+  
   const { data, error } = await supabase.rpc('register_media', {
     p_visit_id: visitId,
     p_media_type: mediaType,
@@ -158,6 +169,18 @@ export async function uploadToStorage(
   file: Blob,
   path: string
 ): Promise<string> {
+  // Ensure we have a session before uploading
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    console.log('[API] No session, attempting anonymous auth...')
+    const { error: authError } = await supabase.auth.signInAnonymously()
+    if (authError) {
+      console.error('[API] Anonymous auth failed:', authError)
+      throw new Error('Authentication required for upload')
+    }
+  }
+  
+  console.log(`[API] Uploading to storage: ${path}, size: ${file.size}`)
   const { data, error } = await supabase.storage
     .from('site-visits')
     .upload(path, file, {
@@ -165,7 +188,12 @@ export async function uploadToStorage(
       upsert: false
     })
 
-  if (error) throw error
+  if (error) {
+    console.error('[API] Storage upload error:', error)
+    throw error
+  }
+  
+  console.log('[API] Upload successful:', data.path)
   return data.path
 }
 

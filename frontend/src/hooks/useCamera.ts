@@ -16,21 +16,24 @@ export function useCamera() {
       
       if (Capacitor.isNativePlatform()) {
         console.log('[Camera] Native platform detected, starting CameraPreview...')
-        // Native camera preview - FULL SCREEN
+        // Native camera preview - FULL SCREEN BEHIND WEBVIEW
         await CameraPreview.start({
           position: 'rear',
           height: window.innerHeight,
           width: window.innerWidth,
           x: 0,
           y: 0,
-          toBack: false, // Keep camera in front for now
+          toBack: true, // Put camera behind webview
           enableZoom: true,
           disableAudio: true
         })
         console.log('[Camera] CameraPreview started successfully')
         
-        // Make the webview background transparent if using toBack
-        // document.body.style.backgroundColor = 'transparent'
+        // Make the container transparent so camera shows through
+        const previewElement = document.getElementById('camera-preview')
+        if (previewElement) {
+          previewElement.style.backgroundColor = 'transparent'
+        }
       } else {
         // Web fallback
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -61,6 +64,11 @@ export function useCamera() {
     try {
       if (Capacitor.isNativePlatform()) {
         await CameraPreview.stop()
+        // Restore background
+        const previewElement = document.getElementById('camera-preview')
+        if (previewElement) {
+          previewElement.style.backgroundColor = ''
+        }
       } else {
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop())
