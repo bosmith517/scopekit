@@ -48,7 +48,14 @@ export default function CaptureFlowScreen() {
         } catch (err) {
           console.error('Camera preview failed:', err)
           setIsCameraOpen(false)
-          alert('Camera failed to start. Please try again.')
+          
+          // Check if it's a permission error
+          const errorMsg = err?.toString() || ''
+          if (errorMsg.includes('Failed to access device camera') || errorMsg.includes('permission')) {
+            alert('Camera permission denied.\n\nPlease go to:\nSettings → ScopeKit → Camera → Allow')
+          } else {
+            alert(`Camera failed: ${errorMsg}`)
+          }
         }
       }, 100) // Small delay to ensure DOM is ready
       

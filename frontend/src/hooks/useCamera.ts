@@ -15,7 +15,23 @@ export function useCamera() {
       console.log('[Camera] Starting preview...')
       
       if (Capacitor.isNativePlatform()) {
-        console.log('[Camera] Native platform detected, starting CameraPreview...')
+        console.log('[Camera] Native platform detected, requesting camera permission...')
+        
+        // Request camera permission first
+        try {
+          const { Camera } = await import('@capacitor/camera')
+          const permission = await Camera.requestPermissions({ permissions: ['camera'] })
+          console.log('[Camera] Permission result:', permission.camera)
+          
+          if (permission.camera !== 'granted' && permission.camera !== 'limited') {
+            throw new Error('Camera permission denied. Please enable in Settings.')
+          }
+        } catch (permError) {
+          console.error('[Camera] Permission error:', permError)
+          throw new Error('Camera permission required. Please enable in Settings > ScopeKit.')
+        }
+        
+        console.log('[Camera] Permission granted, starting CameraPreview...')
         
         // Get the container dimensions
         const previewElement = document.getElementById('camera-preview')
