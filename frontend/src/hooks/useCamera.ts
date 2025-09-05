@@ -16,24 +16,30 @@ export function useCamera() {
       
       if (Capacitor.isNativePlatform()) {
         console.log('[Camera] Native platform detected, starting CameraPreview...')
-        // Native camera preview - FULL SCREEN BEHIND WEBVIEW
+        
+        // Get the container dimensions
+        const previewElement = document.getElementById('camera-preview')
+        if (!previewElement) {
+          throw new Error('Camera preview container not found')
+        }
+        
+        const rect = previewElement.getBoundingClientRect()
+        console.log('[Camera] Preview container dimensions:', rect)
+        
+        // Native camera preview - constrained to container
         await CameraPreview.start({
           position: 'rear',
-          height: window.innerHeight,
-          width: window.innerWidth,
-          x: 0,
-          y: 0,
-          toBack: true, // Put camera behind webview
+          height: Math.floor(rect.height),
+          width: Math.floor(rect.width),
+          x: Math.floor(rect.left),
+          y: Math.floor(rect.top),
+          toBack: false, // Keep in front but constrained
+          paddingBottom: 0,
+          rotateWhenOrientationChanged: true,
           enableZoom: true,
           disableAudio: true
         })
         console.log('[Camera] CameraPreview started successfully')
-        
-        // Make the container transparent so camera shows through
-        const previewElement = document.getElementById('camera-preview')
-        if (previewElement) {
-          previewElement.style.backgroundColor = 'transparent'
-        }
       } else {
         // Web fallback
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -64,11 +70,7 @@ export function useCamera() {
     try {
       if (Capacitor.isNativePlatform()) {
         await CameraPreview.stop()
-        // Restore background
-        const previewElement = document.getElementById('camera-preview')
-        if (previewElement) {
-          previewElement.style.backgroundColor = ''
-        }
+        console.log('[Camera] Camera preview stopped')
       } else {
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop())

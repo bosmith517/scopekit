@@ -187,9 +187,9 @@ export default function CaptureFlowScreen() {
         <div className="p-6">
           {activeTab === 'photos' ? (
             isCameraOpen ? (
-              // Full screen camera view with overlay controls
-              <div className="fixed inset-0 z-50">
-                {/* Camera preview container - full screen */}
+              // Camera view with controls
+              <div className="relative h-[600px] bg-black rounded-lg overflow-hidden">
+                {/* Camera preview container */}
                 <div id="camera-preview" className="absolute inset-0 bg-black">
                   {/* Video element for web fallback */}
                   {!Capacitor.isNativePlatform() && (
@@ -202,52 +202,52 @@ export default function CaptureFlowScreen() {
                   )}
                 </div>
                 
-                {/* Top overlay - header with close button */}
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-4 safe-top">
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={handleCloseCamera}
-                      className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white"
-                      aria-label="Close camera"
-                    >
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                    <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1">
-                      <span className="text-white text-sm font-medium">{photoCount} photos</span>
+                {/* Control buttons overlay - on top of camera */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Top controls */}
+                  <div className="absolute top-0 left-0 right-0 p-4 pointer-events-auto">
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={handleCloseCamera}
+                        className="p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                      >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      <div className="bg-black/50 rounded-full px-3 py-1">
+                        <span className="text-white text-sm font-medium">{photoCount} photos</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Bottom overlay - capture controls */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 safe-bottom">
-                  <div className="flex items-center justify-center gap-8">
-                    {/* Gallery button (placeholder) */}
-                    <div className="w-12 h-12" />
-                    
-                    {/* Capture button - big and centered */}
-                    <button
-                      onClick={handleCapturePhoto}
-                      disabled={isCapturing}
-                      className="relative"
-                      aria-label="Take photo"
-                    >
-                      <div className={`w-20 h-20 rounded-full border-4 border-white ${isCapturing ? 'bg-white/50' : 'bg-white/20'} backdrop-blur-sm transition-all`}>
-                        <div className={`absolute inset-2 rounded-full bg-white ${isCapturing ? 'scale-75' : ''} transition-transform`} />
-                      </div>
-                    </button>
-                    
-                    {/* Flip camera button */}
-                    <button
-                      onClick={() => camera.flipCamera()}
-                      className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-sm rounded-full text-white"
-                      aria-label="Flip camera"
-                    >
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                      </svg>
-                    </button>
+                  
+                  {/* Bottom controls */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-auto">
+                    <div className="flex items-center justify-center gap-8">
+                      {/* Gallery placeholder */}
+                      <div className="w-12 h-12" />
+                      
+                      {/* Capture button */}
+                      <button
+                        onClick={handleCapturePhoto}
+                        disabled={isCapturing}
+                        className="relative"
+                      >
+                        <div className={`w-20 h-20 rounded-full border-4 border-white ${isCapturing ? 'bg-white/50' : 'bg-white/20'} transition-all`}>
+                          <div className={`absolute inset-2 rounded-full bg-white ${isCapturing ? 'scale-75' : ''} transition-transform`} />
+                        </div>
+                      </button>
+                      
+                      {/* Flip camera */}
+                      <button
+                        onClick={() => camera.flipCamera()}
+                        className="w-12 h-12 flex items-center justify-center bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                      >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
