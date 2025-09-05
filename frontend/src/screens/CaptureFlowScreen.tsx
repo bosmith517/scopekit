@@ -39,6 +39,15 @@ export default function CaptureFlowScreen() {
       console.log('Opening camera...')
       await camera.startPreview()
       setIsCameraOpen(true)
+      
+      // Debug: Check if buttons are actually rendered
+      setTimeout(() => {
+        const buttons = document.querySelectorAll('button')
+        console.log(`[Debug] Found ${buttons.length} buttons on screen`)
+        buttons.forEach((btn, i) => {
+          console.log(`[Debug] Button ${i}:`, btn.className, btn.onclick ? 'has click handler' : 'no handler')
+        })
+      }, 1000)
     } catch (error) {
       console.error('Failed to open camera:', error)
       alert('Camera access failed. Please check permissions.')
@@ -190,7 +199,7 @@ export default function CaptureFlowScreen() {
               // Camera view with controls
               <div className="relative h-[600px] bg-black rounded-lg overflow-hidden">
                 {/* Camera preview container */}
-                <div id="camera-preview" className="absolute inset-0 bg-black">
+                <div id="camera-preview" className="absolute inset-0 bg-black z-0">
                   {/* Video element for web fallback */}
                   {!Capacitor.isNativePlatform() && (
                     <video
@@ -202,48 +211,51 @@ export default function CaptureFlowScreen() {
                   )}
                 </div>
                 
-                {/* Control buttons overlay - on top of camera */}
-                <div className="absolute inset-0 pointer-events-none">
-                  {/* Top controls */}
-                  <div className="absolute top-0 left-0 right-0 p-4 pointer-events-auto">
+                {/* Control buttons overlay - FORCE on top with high z-index */}
+                <div className="absolute inset-0 z-50">
+                  {/* Top controls bar */}
+                  <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent">
                     <div className="flex items-center justify-between">
                       <button
                         onClick={handleCloseCamera}
-                        className="p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                        className="p-3 bg-red-600 rounded-full text-white shadow-lg"
+                        style={{ position: 'relative', zIndex: 100 }}
                       >
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
-                      <div className="bg-black/50 rounded-full px-3 py-1">
+                      <div className="bg-black/60 rounded-full px-4 py-2 shadow-lg">
                         <span className="text-white text-sm font-medium">{photoCount} photos</span>
                       </div>
                     </div>
                   </div>
                   
-                  {/* Bottom controls */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-auto">
+                  {/* Bottom controls bar */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent">
                     <div className="flex items-center justify-center gap-8">
                       {/* Gallery placeholder */}
-                      <div className="w-12 h-12" />
+                      <div className="w-14 h-14" />
                       
-                      {/* Capture button */}
+                      {/* Capture button - BIG and VISIBLE */}
                       <button
                         onClick={handleCapturePhoto}
                         disabled={isCapturing}
-                        className="relative"
+                        className="relative shadow-xl"
+                        style={{ position: 'relative', zIndex: 100 }}
                       >
-                        <div className={`w-20 h-20 rounded-full border-4 border-white ${isCapturing ? 'bg-white/50' : 'bg-white/20'} transition-all`}>
-                          <div className={`absolute inset-2 rounded-full bg-white ${isCapturing ? 'scale-75' : ''} transition-transform`} />
+                        <div className={`w-24 h-24 rounded-full border-4 border-white ${isCapturing ? 'bg-red-500' : 'bg-white/30'} backdrop-blur-sm`}>
+                          <div className={`absolute inset-3 rounded-full bg-white ${isCapturing ? 'scale-50' : ''} transition-transform`} />
                         </div>
                       </button>
                       
                       {/* Flip camera */}
                       <button
                         onClick={() => camera.flipCamera()}
-                        className="w-12 h-12 flex items-center justify-center bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+                        className="w-14 h-14 flex items-center justify-center bg-blue-600 rounded-full text-white shadow-lg"
+                        style={{ position: 'relative', zIndex: 100 }}
                       >
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                         </svg>
                       </button>
