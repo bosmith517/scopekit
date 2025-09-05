@@ -126,19 +126,36 @@ export default function CaptureFlowScreen() {
     }
   }
 
+  // Manual sync for testing
+  const handleManualSync = async () => {
+    console.log('[Capture] Manual sync triggered')
+    const queue = syncStore.queue
+    console.log(`[Capture] Queue has ${queue.length} items`)
+    await syncStore.processQueue()
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Capture Site Data</h1>
-        <button
-          onClick={() => {
-            console.log('Navigating to finalize screen for visit:', visitId)
-            navigate(`/finalize/${visitId}`)
-          }}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-        >
-          Finish Visit
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleManualSync}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            title={`Sync ${syncStore.queue.length} items`}
+          >
+            Sync ({syncStore.queue.length})
+          </button>
+          <button
+            onClick={() => {
+              console.log('Navigating to finalize screen for visit:', visitId)
+              navigate(`/finalize/${visitId}`)
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Finish Visit
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">

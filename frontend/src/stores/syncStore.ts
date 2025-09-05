@@ -126,22 +126,37 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
               continue
             }
 
-            console.log(`[SyncStore] Uploading ${item.type} to ${item.path}`)
+            console.log(`[SyncStore] Uploading ${item.type} to ${item.path}, size: ${blob.size}`)
             
-            // Upload using proper Supabase API
-            await uploadToStorage(blob, item.path)
+            try {
+              // Upload using proper Supabase API
+              await uploadToStorage(blob, item.path)
+              console.log(`[SyncStore] Upload successful for ${item.path}`)
+            } catch (uploadError: any) {
+              console.error(`[SyncStore] Upload failed:`, uploadError)
+              if (uploadError.message?.includes('row-level security')) {
+                console.error('[SyncStore] RLS policy error - check Supabase permissions')
+              }
+              throw uploadError
+            }
 
-            // Register in database
-            await registerMedia(
-              item.visitId,
-              item.type as 'photo' | 'audio',
-              item.path,
-              item.metadata?.size || blob.size,
-              item.metadata?.duration,
-              item.sequence
-            )
+            try {
+              // Register in database
+              await registerMedia(
+                item.visitId,
+                item.type as 'photo' | 'audio',
+                item.path,
+                item.metadata?.size || blob.size,
+                item.metadata?.duration,
+                item.sequence
+              )
+              console.log(`[SyncStore] Media registered in database for ${item.id}`)
+            } catch (dbError) {
+              console.error(`[SyncStore] Database registration failed:`, dbError)
+              throw dbError
+            }
 
-            console.log(`[SyncStore] Successfully uploaded ${item.id}`)
+            console.log(`[SyncStore] Successfully uploaded and registered ${item.id}`)
             // Remove from queue on success
             await get().removeFromQueue(item.id)
           }
@@ -203,13 +218,12 @@ Network.getStatus().then((status) => {
   useSyncStore.getState().setOnline(status.connected)
 })
 
-// Auto-sync interval based on connection type
+// Auto-sync interval - check every 5 seconds for pending items
 setInterval(async () => {
-  const status = await Network.getStatus()
   const { isOnline, isSyncing, queue } = useSyncStore.getState()
   
   if (isOnline && !isSyncing && queue.length > 0) {
-    const interval = status.connectionType === 'wifi' ? 300000 : 900000 // 5min WiFi, 15min cell
+    console.log(`[SyncStore] Auto-sync triggered, ${queue.length} items pending`)
     useSyncStore.getState().processQueue()
   }
-}, 60000) // Check every minute
+}, 5000) // Check every 5 seconds

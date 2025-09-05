@@ -42,12 +42,22 @@ export default function App() {
       aiEstimation.processQueuedJobs().catch(console.error)
     }
     
-    // Check for auth session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check for auth session, create anonymous if none
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         const tenantId = session.user.app_metadata?.tenant_id
         if (tenantId) {
           useVisitStore.getState().setTenant(tenantId)
+        }
+        console.log('[App] Authenticated user:', session.user.id)
+      } else {
+        // Sign in anonymously for testing
+        console.log('[App] No session, signing in anonymously...')
+        const { data, error } = await supabase.auth.signInAnonymously()
+        if (error) {
+          console.error('[App] Anonymous auth failed:', error)
+        } else {
+          console.log('[App] Anonymous auth successful:', data.user?.id)
         }
       }
     })
