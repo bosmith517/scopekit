@@ -1,15 +1,105 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useVisitStore } from '../stores/visitStore'
-import CameraCapture from '../components/CameraCapture'
-import AudioRecorder from '../components/AudioRecorder'
+import { useCamera } from '../hooks/useCamera'
+import { useAudioRecorder } from '../hooks/useAudioRecorder'
+import { useSyncStore } from '../stores/syncStore'
 
 export default function CaptureFlowScreen() {
   const { visitId } = useParams()
   const navigate = useNavigate()
+  const visitStore = useVisitStore()
+  const syncStore = useSyncStore()
+  const camera = useCamera()
+  const audio = useAudioRecorder()
+  
   const [activeTab, setActiveTab] = useState<'photos' | 'audio'>('photos')
   const [photoCount, setPhotoCount] = useState(0)
-  const [audioRecorded, setAudioRecorded] = useState(false)
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [isCapturing, setIsCapturing] = useState(false)
+
+  // Initialize visit
+  useEffect(() => {
+    if (visitId) {
+      visitStore.setVisitId(visitId)
+    }
+  }, [visitId])
+
+  // Open camera
+  const handleOpenCamera = async () => {
+    try {
+      console.log('Opening camera...')
+      await camera.startPreview()
+      setIsCameraOpen(true)
+    } catch (error) {
+      console.error('Failed to open camera:', error)
+      alert('Camera access failed. Please check permissions.')
+    }
+  }
+
+  // Close camera
+  const handleCloseCamera = async () => {
+    await camera.stopPreview()
+    setIsCameraOpen(false)
+  }
+
+  // Capture photo
+  const handleCapturePhoto = async () => {
+    if (isCapturing) return
+    setIsCapturing(true)
+
+    try {
+      const blob = await camera.capturePhoto()
+      if (!blob) throw new Error('Failed to capture photo')
+
+      const tenantId = visitStore.tenantId || '00000000-0000-0000-0000-000000000001'
+      
+      // Add to sync queue
+      const sequence = photoCount
+      const timestamp = Date.now()
+      const path = `${tenantId}/${visitId}/photos/photo_${sequence}_${timestamp}.jpg`
+      
+      await syncStore.addToQueue({
+        visitId: visitId!,
+        type: 'photo',
+        blob,
+        path,
+        sequence,
+        metadata: {
+          size: blob.size
+        }
+      })
+
+      setPhotoCount(photoCount + 1)
+      console.log(`Photo ${sequence} captured and queued`)
+
+      // Flash effect
+      const flash = document.createElement('div')
+      flash.className = 'fixed inset-0 bg-white z-50 pointer-events-none opacity-75'
+      document.body.appendChild(flash)
+      setTimeout(() => flash.remove(), 200)
+
+    } catch (error) {
+      console.error('Capture error:', error)
+      alert('Failed to capture photo')
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
+  // Toggle recording
+  const handleRecordToggle = async () => {
+    try {
+      if (audio.isRecording) {
+        await audio.stopRecording()
+      } else {
+        await audio.startRecording()
+      }
+    } catch (error) {
+      console.error('Recording error:', error)
+      alert('Recording failed. Please check microphone permissions.')
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -44,31 +134,81 @@ export default function CaptureFlowScreen() {
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Audio Notes {audioRecorded && '✓'}
+              Audio Notes {audio.isRecording && '🔴'}
             </button>
           </nav>
         </div>
 
         <div className="p-6">
           {activeTab === 'photos' ? (
-            <div className="text-center py-12 text-gray-500">
-              <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <p>Camera capture will appear here</p>
-              <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg">
-                Open Camera
-              </button>
-            </div>
+            isCameraOpen ? (
+              // Camera view
+              <div className="relative">
+                <div id="camera-preview" className="bg-black rounded-lg" style={{ height: '400px' }}>
+                  <video
+                    ref={camera.videoRef}
+                    className="w-full h-full object-cover rounded-lg"
+                    playsInline
+                    muted
+                  />
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={handleCloseCamera}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                  >
+                    Close Camera
+                  </button>
+                  <button
+                    onClick={handleCapturePhoto}
+                    disabled={isCapturing}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+                  >
+                    {isCapturing ? 'Capturing...' : 'Take Photo'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Camera placeholder
+              <div className="text-center py-12 text-gray-500">
+                <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <p className="mb-4">
+                  {camera.error || 'Camera capture will appear here'}
+                </p>
+                <button 
+                  onClick={handleOpenCamera}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Open Camera
+                </button>
+                {photoCount > 0 && (
+                  <p className="mt-4 text-sm text-green-600">
+                    {photoCount} photo{photoCount !== 1 ? 's' : ''} captured
+                  </p>
+                )}
+              </div>
+            )
           ) : (
+            // Audio tab
             <div className="text-center py-12 text-gray-500">
               <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
-              <p>Audio recorder will appear here</p>
-              <button className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">
-                Start Recording
+              <p className="mb-4">
+                {audio.error || (audio.isRecording ? `Recording: ${audio.duration}s` : 'Ready to record audio')}
+              </p>
+              <button 
+                onClick={handleRecordToggle}
+                className={`px-6 py-3 rounded-lg text-white transition-colors ${
+                  audio.isRecording 
+                    ? 'bg-red-600 hover:bg-red-700' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {audio.isRecording ? 'Stop Recording' : 'Start Recording'}
               </button>
             </div>
           )}
