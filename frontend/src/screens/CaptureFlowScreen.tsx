@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useVisitStore, EVIDENCE_PACKS } from '../stores/visitStore'
+import { useVisitStore } from '../stores/visitStore'
 import CameraCapture from '../components/CameraCapture'
 import AudioRecorder from '../components/AudioRecorder'
-import EvidencePackChecklist from '../components/EvidencePackChecklist'
 
 export default function CaptureFlowScreen() {
   const { visitId } = useParams()
@@ -11,18 +10,6 @@ export default function CaptureFlowScreen() {
   const [activeTab, setActiveTab] = useState<'photos' | 'audio'>('photos')
   const [photoCount, setPhotoCount] = useState(0)
   const [audioRecorded, setAudioRecorded] = useState(false)
-  const { evidencePack, checklist, startVisit } = useVisitStore()
-
-  // Initialize Evidence Pack if not already set (e.g., page refresh)
-  useEffect(() => {
-    if (!evidencePack && visitId) {
-      // Default to general inspection pack if none set
-      const defaultPack = EVIDENCE_PACKS.find(pack => pack.id.includes('general'))
-      if (defaultPack) {
-        startVisit(visitId, defaultPack)
-      }
-    }
-  }, [visitId, evidencePack, startVisit])
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -35,9 +22,6 @@ export default function CaptureFlowScreen() {
           Finish Visit
         </button>
       </div>
-
-      {/* Evidence Pack Checklist */}
-      {evidencePack && <EvidencePackChecklist />}
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="border-b border-gray-200">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useVisitStore, EVIDENCE_PACKS } from '../stores/visitStore'
+import { useVisitStore } from '../stores/visitStore'
 import { createSiteVisit } from '../lib/api'
 
 const evidencePacks = [
@@ -48,7 +48,7 @@ const evidencePacks = [
 
 export default function NewVisitScreen() {
   const navigate = useNavigate()
-  const { setVisitId, startVisit } = useVisitStore()
+  const { setVisitId } = useVisitStore()
   const [selectedPack, setSelectedPack] = useState<string>('')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -78,24 +78,6 @@ export default function NewVisitScreen() {
       if (error) throw error
       if (data) {
         setVisitId(data.id)
-        
-        // Find the matching Evidence Pack from the store
-        let evidencePack = EVIDENCE_PACKS.find(pack => 
-          pack.id.includes('roofing') && selectedPack.includes('roofing') ||
-          pack.id.includes('electrical') && selectedPack.includes('electrical') ||
-          pack.id.includes('plumbing') && selectedPack.includes('plumbing') ||
-          pack.id.includes('hvac') && selectedPack.includes('hvac') ||
-          pack.id.includes('general') && selectedPack.includes('general')
-        )
-        
-        // Fallback to general if no match
-        if (!evidencePack) {
-          evidencePack = EVIDENCE_PACKS.find(pack => pack.id.includes('general'))!
-        }
-        
-        // Initialize the visit with the Evidence Pack
-        startVisit(data.id, evidencePack)
-        
         navigate(`/capture/${data.id}`)
       }
     } catch (error) {
