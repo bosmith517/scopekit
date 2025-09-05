@@ -15,7 +15,8 @@ export function useAudioRecorder() {
   const chunksRef = useRef<Blob[]>([])
   const startTimeRef = useRef<number>(0)
   const chunkCountRef = useRef<number>(0)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const chunkIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const durationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const visitStore = useVisitStore()
   const syncStore = useSyncStore()
@@ -41,6 +42,8 @@ export function useAudioRecorder() {
     const timestamp = Date.now()
     const path = `${tenantId}/${visitId}/audio/chunk_${chunkNumber}_${timestamp}.webm`
     
+    console.log(`[AudioRecorder] Saving audio chunk ${chunkNumber} to queue, size: ${blob.size}, path: ${path}`)
+    
     await syncStore.addToQueue({
       visitId,
       type: 'audio',
@@ -54,6 +57,7 @@ export function useAudioRecorder() {
     })
 
     visitStore.addAudioChunk(`chunk_${chunkNumber}_${timestamp}`)
+    console.log(`[AudioRecorder] Audio chunk ${chunkNumber} added to queue successfully`)
   }
 
   // Start recording
@@ -63,8 +67,10 @@ export function useAudioRecorder() {
       const visitId = visitStore.visitId
       const tenantId = visitStore.tenantId
       
+      console.log('[AudioRecorder] Starting recording with visitId:', visitId, 'tenantId:', tenantId)
+      
       if (!visitId || !tenantId) {
-        throw new Error('No active visit')
+        throw new Error(`No active visit - visitId: ${visitId}, tenantId: ${tenantId}`)
       }
 
       if (Capacitor.isNativePlatform()) {
@@ -80,7 +86,7 @@ export function useAudioRecorder() {
         await VoiceRecorder.startRecording()
         
         // Set up chunking interval for native recording
-        intervalRef.current = setInterval(async () => {
+        chunkIntervalRef.current = setInterval(async () => {
           try {
             // Stop current recording
             const result = await VoiceRecorder.stopRecording()
@@ -138,7 +144,7 @@ export function useAudioRecorder() {
       startTimeRef.current = Date.now()
 
       // Update duration every second
-      intervalRef.current = setInterval(() => {
+      durationIntervalRef.current = setInterval(() => {
         setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000))
       }, 1000)
 
@@ -158,9 +164,9 @@ export function useAudioRecorder() {
 
       if (Capacitor.isNativePlatform()) {
         // Native stop
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current)
-          intervalRef.current = null
+        if (chunkIntervalRef.current) {
+          clearInterval(chunkIntervalRef.current)
+          chunkIntervalRef.current = null
         }
         
         const result = await VoiceRecorder.stopRecording()
@@ -187,9 +193,9 @@ export function useAudioRecorder() {
         }
       }
 
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
+      if (durationIntervalRef.current) {
+        clearInterval(durationIntervalRef.current)
+        durationIntervalRef.current = null
       }
 
       setIsRecording(false)

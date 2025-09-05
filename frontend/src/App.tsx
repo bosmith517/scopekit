@@ -18,11 +18,18 @@ export default function App() {
     useVisitStore.getState().setTenant(defaultTenantId)
     console.log('[App] Initialized with tenant:', defaultTenantId)
     
-    // Expose stores for debugging
+    // Expose stores and sync functions for debugging
     if (typeof window !== 'undefined') {
       (window as any).stores = {
         visitStore: useVisitStore.getState(),
         syncStore: useSyncStore.getState()
+      };
+      (window as any).manualSync = async () => {
+        console.log('Manual sync triggered');
+        const syncStore = useSyncStore.getState();
+        syncStore.setOnline(true);
+        await syncStore.processQueue();
+        console.log('Manual sync completed');
       }
     }
     

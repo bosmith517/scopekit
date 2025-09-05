@@ -53,16 +53,26 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       createdAt: Date.now()
     }
 
+    console.log(`[SyncStore] Adding item to queue:`, {
+      id: queueItem.id,
+      type: queueItem.type,
+      path: queueItem.path,
+      size: item.blob?.size
+    })
+
     // Save blob to IndexedDB
-    await queueStorage.setItem(queueItem.id, queueItem.blob)
+    if (item.blob) {
+      await queueStorage.setItem(queueItem.id, item.blob)
+    }
 
     set((state) => ({
-      queue: [...state.queue, { ...queueItem, blob: new Blob() }] // Don't keep blob in memory
+      queue: [...state.queue, { ...queueItem, blob: undefined }] // Don't keep blob in memory
     }))
 
     // Trigger sync if online
     if (get().isOnline && !get().isSyncing) {
-      get().processQueue()
+      console.log('[SyncStore] Triggering automatic sync...')
+      setTimeout(() => get().processQueue(), 100) // Small delay to let state settle
     }
   },
 
@@ -84,6 +94,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     if (!isOnline || isSyncing || queue.length === 0) return
 
     set({ isSyncing: true })
+    console.log(`[SyncStore] Processing queue with ${queue.length} items`)
 
     try {
       for (const item of queue) {
@@ -103,29 +114,34 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
             await get().removeFromQueue(item.id)
           } else {
             // Handle media uploads
-            if (!item.blob || !item.path) continue
+            if (!item.path) {
+              console.error(`No path for item ${item.id}`)
+              continue
+            }
             
             // Get blob from storage
             const blob = await queueStorage.getItem<Blob>(item.id)
-            if (!blob) continue
+            if (!blob) {
+              console.error(`No blob found for item ${item.id}`)
+              continue
+            }
 
-            // Upload with progress tracking
-            await uploadWithProgress(
-              blob,
-              item.path,
-              (progress) => get().updateProgress(item.id, progress)
-            )
+            console.log(`[SyncStore] Uploading ${item.type} to ${item.path}`)
+            
+            // Upload using proper Supabase API
+            await uploadToStorage(blob, item.path)
 
             // Register in database
             await registerMedia(
               item.visitId,
               item.type as 'photo' | 'audio',
               item.path,
-              item.metadata?.size,
+              item.metadata?.size || blob.size,
               item.metadata?.duration,
               item.sequence
             )
 
+            console.log(`[SyncStore] Successfully uploaded ${item.id}`)
             // Remove from queue on success
             await get().removeFromQueue(item.id)
           }
@@ -148,6 +164,7 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       }
     } finally {
       set({ isSyncing: false })
+      console.log('[SyncStore] Queue processing completed')
     }
   },
 
@@ -175,38 +192,6 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   }
 }))
 
-// Helper to upload with progress
-async function uploadWithProgress(
-  blob: Blob,
-  path: string,
-  onProgress: (progress: number) => void
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest()
-
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100))
-      }
-    })
-
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve()
-      } else {
-        reject(new Error(`Upload failed: ${xhr.status}`))
-      }
-    })
-
-    xhr.addEventListener('error', () => reject(new Error('Upload failed')))
-
-    // Use Supabase storage API directly
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/site-visits/${path}`
-    xhr.open('POST', url)
-    xhr.setRequestHeader('Authorization', `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`)
-    xhr.send(blob)
-  })
-}
 
 // Initialize network monitoring
 Network.addListener('networkStatusChange', (status) => {

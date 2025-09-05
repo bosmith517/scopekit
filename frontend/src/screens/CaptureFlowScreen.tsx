@@ -76,15 +76,18 @@ export default function CaptureFlowScreen() {
         path,
         sequence,
         metadata: {
-          size: blob.size,
-          location: location ? {
-            lat: location.latitude,
-            lng: location.longitude,
-            accuracy: location.accuracy,
-            timestamp: location.timestamp
-          } : undefined
+          size: blob.size
         }
       })
+      
+      // Store location separately in visit store if needed
+      if (location) {
+        console.log('Photo captured with location:', {
+          lat: location.latitude,
+          lng: location.longitude,
+          accuracy: location.accuracy
+        })
+      }
 
       setPhotoCount(photoCount + 1)
       console.log(`Photo ${sequence} captured and queued`)
