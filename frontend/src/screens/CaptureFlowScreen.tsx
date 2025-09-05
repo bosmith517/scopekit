@@ -5,6 +5,7 @@ import { useCamera } from '../hooks/useCamera'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useSyncStore } from '../stores/syncStore'
 import { useGeolocation } from '../hooks/useGeolocation'
+import { Capacitor } from '@capacitor/core'
 
 export default function CaptureFlowScreen() {
   const { visitId } = useParams()
@@ -53,11 +54,16 @@ export default function CaptureFlowScreen() {
   // Capture photo
   const handleCapturePhoto = async () => {
     if (isCapturing) return
+    console.log('[Capture] Starting photo capture...')
     setIsCapturing(true)
 
     try {
       const blob = await camera.capturePhoto()
-      if (!blob) throw new Error('Failed to capture photo')
+      if (!blob) {
+        console.error('[Capture] No blob returned from camera')
+        throw new Error('Failed to capture photo')
+      }
+      console.log('[Capture] Photo captured, blob size:', blob.size)
 
       // Get current location for this photo
       const location = await geolocation.getCurrentLocation()
@@ -165,15 +171,18 @@ export default function CaptureFlowScreen() {
           {activeTab === 'photos' ? (
             isCameraOpen ? (
               // Full screen camera view with overlay controls
-              <div className="fixed inset-0 z-50 bg-black">
+              <div className="fixed inset-0 z-50">
                 {/* Camera preview container - full screen */}
-                <div id="camera-preview" className="absolute inset-0">
-                  <video
-                    ref={camera.videoRef}
-                    className="w-full h-full object-cover"
-                    playsInline
-                    muted
-                  />
+                <div id="camera-preview" className="absolute inset-0 bg-black">
+                  {/* Video element for web fallback */}
+                  {!Capacitor.isNativePlatform() && (
+                    <video
+                      ref={camera.videoRef}
+                      className="w-full h-full object-cover"
+                      playsInline
+                      muted
+                    />
+                  )}
                 </div>
                 
                 {/* Top overlay - header with close button */}
