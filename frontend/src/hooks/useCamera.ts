@@ -14,12 +14,18 @@ export function useCamera() {
       setError(null)
       
       if (Capacitor.isNativePlatform()) {
-        // Native camera preview
+        // Native camera preview - constrained to container
+        const previewElement = document.getElementById('camera-preview')
+        const rect = previewElement?.getBoundingClientRect()
+        
         await CameraPreview.start({
           position: 'rear',
-          height: window.innerHeight,
-          width: window.innerWidth,
+          height: rect?.height || 400,
+          width: rect?.width || window.innerWidth - 40,
+          x: rect?.left || 20,
+          y: rect?.top || 150,
           toBack: false,
+          paddingBottom: 100,
           enableZoom: true,
           disableAudio: true
         })

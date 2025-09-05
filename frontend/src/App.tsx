@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useVisitStore } from './stores/visitStore'
+import { useSyncStore } from './stores/syncStore'
 import { supabase } from './lib/supabase'
 import { Capacitor } from '@capacitor/core'
 import { pushNotifications } from './services/pushNotifications'
@@ -16,6 +17,14 @@ export default function App() {
     const defaultTenantId = '00000000-0000-0000-0000-000000000001'
     useVisitStore.getState().setTenant(defaultTenantId)
     console.log('[App] Initialized with tenant:', defaultTenantId)
+    
+    // Expose stores for debugging
+    if (typeof window !== 'undefined') {
+      (window as any).stores = {
+        visitStore: useVisitStore.getState(),
+        syncStore: useSyncStore.getState()
+      }
+    }
     
     // Initialize mobile services
     if (Capacitor.isNativePlatform()) {

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useVisitStore } from '../stores/visitStore'
 import { createSiteVisit } from '../lib/api'
+import { useGeolocation } from '../hooks/useGeolocation'
 
 const evidencePacks = [
   {
@@ -49,12 +50,22 @@ const evidencePacks = [
 export default function NewVisitScreen() {
   const navigate = useNavigate()
   const { setVisitId } = useVisitStore()
+  const geolocation = useGeolocation()
   const [selectedPack, setSelectedPack] = useState<string>('')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
   const [propertyAddress, setPropertyAddress] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+
+  // Request location permission on mount
+  useEffect(() => {
+    geolocation.getCurrentLocation().then(location => {
+      if (location) {
+        console.log('Visit location captured:', location)
+      }
+    })
+  }, [])
 
   const handleCreateVisit = async () => {
     if (!selectedPack) {

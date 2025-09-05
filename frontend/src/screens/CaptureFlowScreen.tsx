@@ -4,6 +4,7 @@ import { useVisitStore } from '../stores/visitStore'
 import { useCamera } from '../hooks/useCamera'
 import { useAudioRecorder } from '../hooks/useAudioRecorder'
 import { useSyncStore } from '../stores/syncStore'
+import { useGeolocation } from '../hooks/useGeolocation'
 
 export default function CaptureFlowScreen() {
   const { visitId } = useParams()
@@ -12,6 +13,7 @@ export default function CaptureFlowScreen() {
   const syncStore = useSyncStore()
   const camera = useCamera()
   const audio = useAudioRecorder()
+  const geolocation = useGeolocation()
   
   const [activeTab, setActiveTab] = useState<'photos' | 'audio'>('photos')
   const [photoCount, setPhotoCount] = useState(0)
@@ -21,7 +23,12 @@ export default function CaptureFlowScreen() {
   // Initialize visit
   useEffect(() => {
     if (visitId) {
+      console.log('Setting visit ID:', visitId)
       visitStore.setVisitId(visitId)
+      // Also set tenant ID if not set
+      if (!visitStore.tenantId) {
+        visitStore.setTenant('00000000-0000-0000-0000-000000000001')
+      }
     }
   }, [visitId])
 
@@ -52,6 +59,9 @@ export default function CaptureFlowScreen() {
       const blob = await camera.capturePhoto()
       if (!blob) throw new Error('Failed to capture photo')
 
+      // Get current location for this photo
+      const location = await geolocation.getCurrentLocation()
+      
       const tenantId = visitStore.tenantId || '00000000-0000-0000-0000-000000000001'
       
       // Add to sync queue
@@ -66,7 +76,13 @@ export default function CaptureFlowScreen() {
         path,
         sequence,
         metadata: {
-          size: blob.size
+          size: blob.size,
+          location: location ? {
+            lat: location.latitude,
+            lng: location.longitude,
+            accuracy: location.accuracy,
+            timestamp: location.timestamp
+          } : undefined
         }
       })
 
@@ -144,28 +160,31 @@ export default function CaptureFlowScreen() {
             isCameraOpen ? (
               // Camera view
               <div className="relative">
-                <div id="camera-preview" className="bg-black rounded-lg" style={{ height: '400px' }}>
+                <div id="camera-preview" className="bg-black rounded-lg relative" style={{ height: '400px' }}>
                   <video
                     ref={camera.videoRef}
                     className="w-full h-full object-cover rounded-lg"
                     playsInline
                     muted
                   />
-                </div>
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={handleCloseCamera}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-                  >
-                    Close Camera
-                  </button>
-                  <button
-                    onClick={handleCapturePhoto}
-                    disabled={isCapturing}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-                  >
-                    {isCapturing ? 'Capturing...' : 'Take Photo'}
-                  </button>
+                  {/* Overlay controls for safety */}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleCloseCamera}
+                        className="px-4 py-3 bg-red-600 text-white rounded-lg font-medium"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={handleCapturePhoto}
+                        disabled={isCapturing}
+                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium disabled:bg-gray-400"
+                      >
+                        {isCapturing ? 'Capturing...' : 'Take Photo'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
