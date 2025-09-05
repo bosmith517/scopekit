@@ -64,7 +64,7 @@ export default function NewVisitScreen() {
 
     setIsCreating(true)
     try {
-      const { data, error } = await createSiteVisit(
+      const visitId = await createSiteVisit(
         selectedPack,
         undefined, // leadId
         {
@@ -75,10 +75,10 @@ export default function NewVisitScreen() {
         }
       )
       
-      if (error) throw error
-      if (data) {
-        setVisitId(data)
-        window.location.hash = `/capture/${data}`
+      if (visitId) {
+        setVisitId(visitId)
+        console.log('Navigating to:', `/capture/${visitId}`)
+        window.location.hash = `/capture/${visitId}`
       }
     } catch (error) {
       console.error('Error creating visit:', error)
